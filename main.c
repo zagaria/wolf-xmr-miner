@@ -6,7 +6,9 @@
 #include <stdbool.h>
 #include <jansson.h>
 #include <stdatomic.h>
+#ifdef _x86_64
 #include <cpuid.h>
+#endif
 
 #ifdef __linux__
 
@@ -23,8 +25,6 @@
 #include <winsock2.h>
 
 #endif
-
-#include <CL/cl.h>
 
 #include "cryptonight.h"
 #include "minerutils.h"
@@ -261,6 +261,7 @@ void *PoolBroadcastThreadProc(void *Info)
 	return(NULL);
 }
 
+#if 0
 int32_t XMRSetKernelArgs(AlgoContext *HashData, void *HashInput, uint32_t Target)
 {
 	cl_int retval;
@@ -788,6 +789,7 @@ int32_t SetupXMRTest(AlgoContext *HashData, OCLPlatform *OCL, uint32_t DeviceIdx
 	
 	return(ERR_SUCCESS);
 }
+#endif
 
 static void RestartMiners(PoolInfo *Pool)
 {
@@ -1328,13 +1330,16 @@ void *MinerThreadProc(void *Info)
 	memcpy(TmpWork, MyJob->XMRBlob, sizeof(MyJob->XMRBlob));
 	Target = MyJob->XMRTarget;
 	
+#if 0
 	if (MTInfo->PlatformContext) {
 		MTInfo->AlgoCtx.Nonce = StartNonce;
 		err = XMRSetKernelArgs(&MTInfo->AlgoCtx, TmpWork, Target);
 		if(err) return(NULL);
 		sprintf(ThrID, "Thread %d, GPU ID %d, GPU Type: %s",
 			MTInfo->ThreadID, *MTInfo->AlgoCtx.GPUIdxs, MTInfo->PlatformContext->Devices[*MTInfo->AlgoCtx.GPUIdxs].DeviceName);
-	} else {
+	} else
+#endif
+	{
 		ctx = cryptonight_ctx();
 		*nonceptr = StartNonce;
 		sprintf(ThrID, "Thread %d, (CPU)", MTInfo->ThreadID);
@@ -1357,11 +1362,14 @@ void *MinerThreadProc(void *Info)
 			memcpy(TmpWork, MyJob->XMRBlob, sizeof(MyJob->XMRBlob));
 			Target = MyJob->XMRTarget;
 			
+#if 0
 			if (MTInfo->PlatformContext) {
 				MTInfo->AlgoCtx.Nonce = StartNonce;
 				err = XMRSetKernelArgs(&MTInfo->AlgoCtx, TmpWork, Target);
 				if(err) return(NULL);
-			} else {
+			} else
+#endif
+			{
 				*nonceptr = StartNonce;
 			}
 		}
@@ -1375,6 +1383,7 @@ void *MinerThreadProc(void *Info)
 		
 		begin = MinerGetCurTime();
 		
+#if 0
 		if (MTInfo->PlatformContext) {
 			do
 			{
@@ -1401,7 +1410,9 @@ void *MinerThreadProc(void *Info)
 					pthread_mutex_unlock(&QueueMutex);
 				}
 			} while(MTInfo->AlgoCtx.Nonce < (PrevNonce + 1024));
-		} else {
+		} else
+#endif
+		{
 			const uint32_t first_nonce = *nonceptr;
 			uint32_t n = first_nonce - 1;
 			uint32_t hash[32/4] __attribute__((aligned(32)));
@@ -1446,8 +1457,10 @@ again:
 		Log(LOG_INFO, "%s: %.02fH/s", ThrID, hashes_done / (Seconds));
 	}
 	
+#if 0
 	if (MTInfo->PlatformContext)
 		XMRCleanup(&MTInfo->AlgoCtx);
+#endif
 	
 	return(NULL);
 }
@@ -1757,6 +1770,9 @@ int main(int argc, char **argv)
 	
 	if(ParseConfigurationFile(argv[1], &Settings)) return(0);
 	
+#ifdef __aarch64__
+	cryptonight_hash_ctx = cryptonight_hash_aesni;
+#else
 	if (__get_cpuid_max(0, &tmp1) >= 1) {
 		__get_cpuid(1, &tmp1, &tmp2, &tmp3, &tmp4);
 		if (tmp3 & 0x2000000)
@@ -1766,6 +1782,7 @@ int main(int argc, char **argv)
 		cryptonight_hash_ctx = cryptonight_hash_aesni;
 	else
 		cryptonight_hash_ctx = cryptonight_hash_dumb;
+#endif
 
 	MThrInfo = (MinerThreadInfo *)malloc(sizeof(MinerThreadInfo) * Settings.TotalThreads);
 	MinerWorker = (pthread_t *)malloc(sizeof(pthread_t) * Settings.TotalThreads);
@@ -1916,10 +1933,12 @@ int main(int argc, char **argv)
 			numGPUs--;
 	}
 	
+#if 0
 	if (numGPUs) {
 		ret = InitOpenCLPlatformContext(&PlatformContext, PlatformIdx, numGPUs, GPUIdxList);
 		if(ret) return(0);
 	}
+#endif
 
 	free(GPUIdxList);
 	
@@ -1943,10 +1962,13 @@ int main(int argc, char **argv)
 	{
 		for(int x = 0; x < Settings.GPUSettings[GPUIdx].Threads; ++x)
 		{
+#if 0
 			if (Settings.GPUSettings[GPUIdx].Index != -1) {
 				SetupXMRTest(&MThrInfo[ThrIdx + x].AlgoCtx, &PlatformContext, GPUIdx);
 				MThrInfo[ThrIdx + x].PlatformContext = &PlatformContext;
-			} else {
+			} else
+#endif
+			{
 				MThrInfo[ThrIdx + x].PlatformContext = NULL;
 			}
 			MThrInfo[ThrIdx + x].ThreadID = ThrIdx + x;
@@ -2047,8 +2069,10 @@ int main(int argc, char **argv)
 	
 	for(int i = 0; i < Settings.TotalThreads; ++i) pthread_cancel(MinerWorker[i]);
 	
+#if 0
 	if (numGPUs)
 		ReleaseOpenCLPlatformContext(&PlatformContext);
+#endif
 	
 	//ADLRelease();
 	
