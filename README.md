@@ -22,3 +22,17 @@ Also, it can run faster as root, which allows it to use mlock.
 .... Solo mining:
 
 Use a URL of "daemon+tcp://<host>:<port>" - requires bitmonerod v0.9.3.1 or newer
+
+## Run on ARM Devices
+
+### Build
+```
+git clone https://github.com/zagaria/wolf-xmr-miner.git --branch armv8
+make -f M2
+```
+
+### Run
+```
+./miner xmr.conf
+```
+
