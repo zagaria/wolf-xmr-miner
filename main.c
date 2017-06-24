@@ -1176,7 +1176,7 @@ reauth:
 				{
 					Log(LOG_CRITICAL, "Server message has no id field and doesn't seem to have a method field...");
 					json_decref(msg);
-					closesocket(poolsocket);
+					goto retry2;
 					return(NULL);
 				}
 				
